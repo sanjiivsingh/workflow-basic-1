@@ -12,6 +12,10 @@ permissions:
 jobs:
     plan:
       runs-on: ubuntu-latest
+      defaults:
+        run:
+            working-directory: environment/dev
+
       steps:
 
         - name: Checkout Repo
