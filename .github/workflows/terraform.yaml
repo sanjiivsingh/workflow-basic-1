@@ -96,7 +96,7 @@ jobs:
       needs: plan
       runs-on: ubuntu-latest
       environment:
-        name: development
+        name: production
       defaults:
         run:
             working-directory: environment/dev
