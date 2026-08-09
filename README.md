@@ -253,31 +253,42 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 The flow is therefore:
 
 ```text
-Developer
-    │
-    ▼
-Feature Branch
-    │
-    ▼
-Pull Request → main
-    │
-    ▼
-Security Scan
-    │
-    ▼
-Terraform Plan
-    │
-    ▼
-Branch Protection Checks
-    │
-    ▼
-PR Merged
-    │
-    ▼
-Push to main
-    │
-    ▼
-Terraform Apply
+                  FEATURE BRANCH
+                       │
+                       ▼
+                     SCAN
+                       │
+                       ▼
+                 PLAN + development
+                       │
+                       │
+                       ▼
+                    PR → main
+                       │
+                       ▼
+                    MERGE
+                       │
+                       ▼
+                  PUSH TO MAIN
+                       │
+              ┌────────┴────────┐
+              ▼                 ▼
+            SCAN              PLAN
+                                │
+                         development
+                                │
+                                ▼
+                         APPLY JOB
+                                │
+                         production
+                                │
+                                ▼
+                    ┌──────────────────┐
+                    │ Manual Approval  │
+                    └────────┬─────────┘
+                             │
+                             ▼
+                      Terraform Apply
 ```
 
 ---
