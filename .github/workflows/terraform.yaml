@@ -105,7 +105,8 @@ jobs:
             terraform plan -detailed-exitcode -out=tfplan
 
             EXIT_CODE=$?
-
+            echo "$EXIT_CODE"
+            
             if [ "$EXIT_CODE" -eq 0 ]; then
               echo "status=success" >> "$GITHUB_OUTPUT"
               echo "changes=false" >> "$GITHUB_OUTPUT"
@@ -119,6 +120,7 @@ jobs:
               echo "changes=false" >> "$GITHUB_OUTPUT"
               exit "$EXIT_CODE"
             fi
+
           
         - name: Upload Plan Artifact
           if: steps.planid.outputs.status == 'success' && steps.planid.outputs.changes == 'true'
