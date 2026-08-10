@@ -7,7 +7,14 @@ resource_group = {
     }
   }
   rg2 = {
-    name     = "rg-workfow-1"
+    name     = "rg-workfow-2"
+    location = "central india"
+    tags = {
+      environ = "dev"
+    }
+  }
+  rg3 = {
+    name     = "rg-workfow-3"
     location = "central india"
     tags = {
       environ = "dev"
