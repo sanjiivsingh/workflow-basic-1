@@ -29,7 +29,7 @@ jobs:
         - name: TruffleHog OSS
           uses: trufflesecurity/trufflehog@v3.96.0
           with:
-            extra_args: --results=verified,unknown --json > trufflehog-report.json
+            extra_args: --results=verified,unknown --json >> trufflehog-report.json
 
         - uses: terraform-linters/setup-tflint@v6
           name: Setup TFLint
@@ -46,7 +46,7 @@ jobs:
             GITHUB_TOKEN: ${{ github.token }}
 
         - name: Run TFLint
-          run: tflint -f compact > tflint-report.txt
+          run: tflint -f compact >> tflint-report.txt
 
         - name: Upload Scan Reports
           if: always()
