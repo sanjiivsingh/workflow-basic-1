@@ -87,6 +87,7 @@ jobs:
         - uses: hashicorp/setup-terraform@v4
           with:
             terraform_version: "1.14.6"
+            terraform_wrapper: false
 
         - name: Terraform fmt
           run: terraform fmt -check
@@ -106,7 +107,7 @@ jobs:
 
             EXIT_CODE=$?
             echo "$EXIT_CODE"
-            
+
             if [ "$EXIT_CODE" -eq 0 ]; then
               echo "status=success" >> "$GITHUB_OUTPUT"
               echo "changes=false" >> "$GITHUB_OUTPUT"
@@ -156,6 +157,7 @@ jobs:
         - uses: hashicorp/setup-terraform@v4
           with:
             terraform_version: "1.14.6"
+            terraform_wrapper: false
 
         - name: Terraform fmt
           run: terraform fmt -check
