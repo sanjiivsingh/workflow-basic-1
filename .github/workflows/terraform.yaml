@@ -121,6 +121,7 @@ jobs:
             fi
           
         - name: Upload Plan Artifact
+          if: steps.planid.outputs.status == 'success' && steps.planid.outputs.changes == 'true'
           uses: actions/upload-artifact@v7
           with:
             name: terraform-plan
