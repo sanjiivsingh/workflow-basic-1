@@ -165,7 +165,7 @@ jobs:
           uses: actions/download-artifact@v8
           with:
             name: terraform-plan
-            path: tfplan
+            path: environment/dev/tfplan
           
         - name: Terraform Apply
           run: terraform apply -auto-approve tfplan
