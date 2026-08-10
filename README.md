@@ -1,37 +1,260 @@
-# Terraform CI/CD – Basic Workflow
+# 🆕 Latest Update
 
-A hands-on Terraform learning repository created to understand how **Terraform**, **Azure**, and **GitHub Actions** can be combined to implement a basic CI/CD workflow with DevSecOps practices.
+The GitHub Actions workflow has been enhanced to make the Terraform CI/CD process more controlled, observable, and closer to a real-world workflow.
+
+### 1. Terraform Plan now uses detailed exit codes
+
+The workflow now runs:
+
+```bash
+terraform plan -detailed-exitcode -out=tfplan
+```
+
+The exit code is interpreted as follows:
+
+| Exit Code | Meaning | Workflow Result |
+|---|---|---|
+| `0` | Plan succeeded and no infrastructure changes are required | Successful plan, no Apply |
+| `2` | Plan succeeded and infrastructure changes are detected | Successful plan, Apply can proceed |
+| Other | Terraform plan failed | Plan fails and Apply does not run |
+
+The Plan job exposes two outputs:
+
+```text
+changes
+status
+```
+
+These outputs are consumed by the Apply job to determine whether deployment should take place.
+
+### 2. Terraform Plan is saved as an artifact
+
+When Terraform detects changes, the generated plan file:
+
+```text
+tfplan
+```
+
+is uploaded as a GitHub Actions artifact named:
+
+```text
+terraform-plan
+```
+
+The workflow therefore follows:
+
+```text
+Terraform Plan
+      │
+      ▼
+    tfplan
+      │
+      ▼
+Upload Artifact
+      │
+      ▼
+Apply Job
+      │
+      ▼
+Download Artifact
+      │
+      ▼
+terraform apply tfplan
+```
+
+### 3. Apply is conditional on an actual infrastructure change
+
+The Apply job now runs only when all of the following conditions are satisfied:
+
+```text
+main branch
+     AND
+plan status = success
+     AND
+plan detected changes
+```
+
+The condition is:
+
+```yaml
+if: github.ref == 'refs/heads/main' &&
+    needs.plan.outputs.changes == 'true' &&
+    needs.plan.outputs.status == 'success'
+```
+
+Therefore:
+
+```text
+No changes
+    │
+    ▼
+No Apply
+```
+
+while:
+
+```text
+Changes detected
+    │
+    ▼
+Successful Plan
+    │
+    ▼
+Apply
+```
+
+### 4. Scan reports are preserved as artifacts
+
+The Security Scan job now creates a TFLint report:
+
+```text
+tflint-report.txt
+```
+
+and uploads it as:
+
+```text
+scan-reports
+```
+
+with a retention period of **5 days**.
+
+The upload step uses:
+
+```yaml
+if: always()
+```
+
+so the report can still be uploaded when an earlier scanning step fails.
+
+The scan stage now provides:
+
+```text
+Security Scan
+      │
+      ├── Gitleaks
+      ├── TruffleHog
+      └── TFLint
+             │
+             ▼
+      tflint-report.txt
+             │
+             ▼
+        scan-reports
+```
+
+### 5. TruffleHog output is generated in JSON format
+
+TruffleHog now runs with:
+
+```text
+--results=verified,unknown --json
+```
+
+This produces machine-readable JSON output, making the scan results easier to preserve, process, or integrate into future reporting and security workflows.
+
+### 6. Production Apply uses the generated Terraform plan
+
+The Apply stage downloads the `terraform-plan` artifact and executes:
+
+```bash
+terraform apply -auto-approve tfplan
+```
+
+This is an important improvement over running:
+
+```bash
+terraform apply -auto-approve
+```
+
+because the Apply stage now uses the plan generated during the Plan stage rather than creating a new plan during deployment.
+
+### Updated workflow model
+
+The latest workflow can be summarized as:
+
+```text
+Git Push
+   │
+   ▼
+Security Scan
+   │
+   ├── Gitleaks
+   ├── TruffleHog
+   └── TFLint
+           │
+           ▼
+     Scan Reports
+           │
+           ▼
+    Terraform Plan
+           │
+           ├── fmt
+           ├── init
+           ├── validate
+           └── plan -detailed-exitcode
+                    │
+             ┌──────┴──────┐
+             │             │
+        No Changes      Changes
+             │             │
+             ▼             ▼
+        No Apply      Upload tfplan
+                           │
+                           ▼
+                       Apply Job
+                           │
+                           ▼
+                    Production Environment
+                           │
+                           ▼
+                    Reviewer Approval
+                           │
+                           ▼
+                    Download tfplan
+                           │
+                           ▼
+                 terraform apply tfplan
+```
+
+This update introduces an important CI/CD concept: **the deployment stage consumes the artifact produced by the planning stage, while the workflow avoids deployment when Terraform reports that no infrastructure changes are required.**
+
+---
+
+**# 🚀 Terraform CI/CD – Basic Workflow**
+
+A hands-on Terraform learning repository created to understand how **\*\*Terraform\*\***, **\*\*Azure\*\***, and **\*\*GitHub Actions\*\*** can be combined to implement a basic CI/CD workflow with DevSecOps practices.
 
 The infrastructure in this repository is intentionally simple. It contains a single Azure Resource Group child module so that the primary focus remains on understanding Terraform workflow automation, GitHub Actions jobs, security scanning, environments, approvals, and deployment flow.
 
----
+**---**
 
-## 🎯 Learning Objectives
+**## 🎯 Learning Objectives**
 
 This repository is designed to provide hands-on practice with:
 
-- Terraform root and child modules
-- Terraform formatting and validation
-- Terraform initialization, planning, and applying
-- GitHub Actions workflows
-- Workflow triggers and path filters
-- Job dependencies using `needs`
-- Conditional job execution using `if`
-- Terraform security and code-quality scanning
-- Gitleaks and TruffleHog
-- TFLint
-- Azure authentication using GitHub OIDC
-- GitHub Environments
-- Development and Production environment separation
-- Production deployment approval
-- GitHub branch protection
-- CI/CD concepts for Infrastructure as Code
+\- Terraform root and child modules
+\- Terraform formatting and validation
+\- Terraform initialization, planning, and applying
+\- GitHub Actions workflows
+\- Workflow triggers and path filters
+\- Job dependencies using \`needs\`
+\- Conditional job execution using \`if\`
+\- Terraform security and code-quality scanning
+\- Gitleaks and TruffleHog
+\- TFLint
+\- Azure authentication using GitHub OIDC
+\- GitHub Environments
+\- Development and Production environment separation
+\- Production deployment approval
+\- GitHub branch protection
+\- CI/CD concepts for Infrastructure as Code
 
----
+**---**
 
-# 📁 Repository Structure
+**# 📁 Repository Structure**
 
-```text
+\`\`\`text
 workflow-basic-1/
 │
 ├── .github/
@@ -46,121 +269,121 @@ workflow-basic-1/
 │       └── variables.tf
 │
 ├── modules/
-│   └── azurerm_resource_group/
+│   └── azurerm\_resource\_group/
 │       ├── main.tf
 │       └── variable.tf
 │
 ├── .gitignore
 └── README.md
-```
+\`\`\`
 
----
+**---**
 
-# 🏗️ Terraform Architecture
+**# 🏗️ Terraform Architecture**
 
-The repository follows a simple **root module → child module** structure.
+The repository follows a simple **\*\*root module → child module\*\*** structure.
 
-```text
+\`\`\`text
 environment/dev
       │
       │ module call
       ▼
-modules/azurerm_resource_group
+modules/azurerm\_resource\_group
       │
       ▼
 Azure Resource Group
-```
+\`\`\`
 
-### Root Module
+**### 🧱 Root Module**
 
 The Terraform root configuration is located at:
 
-```text
+\`\`\`text
 environment/dev
-```
+\`\`\`
 
 It contains:
 
-- `main.tf`
-- `provider.tf`
-- `terraform.tfvars`
-- `variables.tf`
+\- \`main.tf\`
+\- \`provider.tf\`
+\- \`terraform.tfvars\`
+\- \`variables.tf\`
 
 This directory is used as the Terraform working directory by GitHub Actions.
 
-### Child Module
+**### 🧩 Child Module**
 
 The repository contains one child module:
 
-```text
-modules/azurerm_resource_group
-```
+\`\`\`text
+modules/azurerm\_resource\_group
+\`\`\`
 
 The module contains:
 
-```text
+\`\`\`text
 main.tf
 variable.tf
-```
+\`\`\`
 
 Its purpose is to demonstrate how a root module can consume a reusable Terraform child module to create an Azure Resource Group.
 
 The module is intentionally simple because this repository focuses primarily on learning the CI/CD workflow rather than building a large infrastructure platform.
 
----
+**---**
 
-# 🔄 GitHub Actions CI/CD Workflow
+**# ⚙️ GitHub Actions CI/CD Workflow**
 
 The GitHub Actions workflow is located at:
 
-```text
+\`\`\`text
 .github/workflows/terraform.yaml
-```
+\`\`\`
 
 The workflow is triggered by pushes, while README-only changes are ignored:
 
-```yaml
+\`\`\`yaml
 on:
   push:
     paths-ignore:
-      - '**/README.md'
-```
+      \- '\*\*/README.md'
+\`\`\`
 
-This means changes to documentation files matching `**/README.md` do not trigger the Terraform workflow.
+This means changes to documentation files matching \`\*\*/README.md\` do not trigger the Terraform workflow.
 
 This is useful because a documentation-only change does not require Terraform security scanning, planning, or deployment.
 
----
+**---**
 
-# 🔐 Workflow Permissions
+**# 🔐 Workflow Permissions**
 
 The workflow uses the following permissions:
 
-```yaml
+\`\`\`yaml
 permissions:
   id-token: write
   contents: read
-```
+\`\`\`
 
-### `contents: read`
+**### \`contents: read\`**
 
 Allows the workflow to check out and read repository contents.
 
-### `id-token: write`
+**### \`id-token: write\`**
 
 Allows GitHub Actions to request an OIDC token.
 
 The OIDC token is then used by Azure authentication so that the workflow can authenticate to Azure without storing a long-lived Azure client secret.
 
----
+**---**
 
-# 🔍 Security Scan Job
+**# 🛡️ Security Scan Job**
 
-The first job is the **Security Scan** job.
+The first job is the **\*\*Security Scan\*\*** job.
 
 It performs:
 
-```text
+\`\`\`text
 Security Scan
       │
       ├── Gitleaks
@@ -168,89 +391,89 @@ Security Scan
       ├── TruffleHog
       │
       └── TFLint
-```
+\`\`\`
 
 The purpose is to identify potential security and Terraform configuration issues before infrastructure changes proceed to the planning stage.
 
-## Gitleaks
+**## 🔐 Gitleaks**
 
 Gitleaks is used to scan the repository for accidentally committed secrets and sensitive information.
 
 Examples include:
 
-- API keys
-- passwords
-- tokens
-- private keys
-- cloud credentials
+\- API keys
+\- passwords
+\- tokens
+\- private keys
+\- cloud credentials
 
-## TruffleHog
+**## 🕵️ TruffleHog**
 
 TruffleHog is another secret-scanning tool used to search the repository for potentially exposed credentials.
 
 The workflow uses:
 
-```text
---results=verified,unknown
-```
+\`\`\`text
+\--results=verified,unknown
+\`\`\`
 
 The configuration requests verified and unknown findings.
 
-## TFLint
+**## 🧹 TFLint**
 
 TFLint is used to lint Terraform configuration and identify Terraform-specific issues and best-practice violations.
 
 The workflow:
 
-1. Installs TFLint
-2. Displays the installed version
-3. Initializes TFLint
-4. Runs TFLint
+1\. Installs TFLint
+2\. Displays the installed version
+3\. Initializes TFLint
+4\. Runs TFLint
 
 Example:
 
-```yaml
-- name: Setup TFLint
-  uses: terraform-linters/setup-tflint@v6
+\`\`\`yaml
+\- name: Setup TFLint
+  uses: terraform-linters/setup-tflint\@v6
 
-- name: Init TFLint
+\- name: Init TFLint
   run: tflint --init
 
-- name: Run TFLint
+\- name: Run TFLint
   run: tflint -f compact
-```
+\`\`\`
 
----
+**---**
 
-# 📋 Terraform Plan Job
+**# 📋 Terraform Plan Job**
 
-The **Terraform Plan** job depends on the Security Scan job:
+The **\*\*Terraform Plan\*\*** job depends on the Security Scan job:
 
-```yaml
+\`\`\`yaml
 needs: scan
-```
+\`\`\`
 
 The dependency creates this relationship:
 
-```text
+\`\`\`text
 Security Scan
       │
       │ success
       ▼
 Terraform Plan
-```
+\`\`\`
 
-If the `scan` job fails, the `plan` job does not proceed.
+If the \`scan\` job fails, the \`plan\` job does not proceed.
 
 The Terraform Plan job runs from:
 
-```text
+\`\`\`text
 environment/dev
-```
+\`\`\`
 
 The job performs:
 
-```text
+\`\`\`text
 Terraform fmt
       │
       ▼
@@ -261,54 +484,54 @@ Terraform validate
       │
       ▼
 Terraform plan
-```
+\`\`\`
 
-### Terraform fmt
+**### ✨ Terraform fmt**
 
 Checks whether the Terraform configuration is correctly formatted:
 
-```bash
+\`\`\`bash
 terraform fmt -check
-```
+\`\`\`
 
-### Terraform init
+**### ⚡ Terraform init**
 
 Initializes the Terraform working directory and downloads the required provider/module dependencies:
 
-```bash
+\`\`\`bash
 terraform init
-```
+\`\`\`
 
-### Terraform validate
+**### ✅ Terraform validate**
 
 Validates the Terraform configuration:
 
-```bash
+\`\`\`bash
 terraform validate
-```
+\`\`\`
 
-### Terraform plan
+**### 📝 Terraform plan**
 
 Creates an execution plan showing what Terraform intends to change:
 
-```bash
+\`\`\`bash
 terraform plan
-```
+\`\`\`
 
----
+**---**
 
-# 🌎 GitHub Environments
+**# 🌎 GitHub Environments**
 
 This workflow uses two GitHub Environments:
 
-```text
+\`\`\`text
 development
 production
-```
+\`\`\`
 
 They represent two different stages of the deployment lifecycle.
 
-```text
+\`\`\`text
 Terraform Plan
       │
       ▼
@@ -322,16 +545,16 @@ Manual Approval
       │
       ▼
 Terraform Apply
-```
+\`\`\`
 
-## Development Environment
+**## 🧪 Development Environment**
 
 The Plan job uses:
 
-```yaml
+\`\`\`yaml
 environment:
   name: development
-```
+\`\`\`
 
 The Development environment does not have a required reviewer.
 
@@ -339,14 +562,14 @@ Its purpose is to represent the non-production stage of the workflow.
 
 The Terraform Plan is associated with this environment.
 
-## Production Environment
+**## 🔒 Production Environment**
 
 The Apply job uses:
 
-```yaml
+\`\`\`yaml
 environment:
   name: production
-```
+\`\`\`
 
 The Production environment has a required reviewer configured in GitHub.
 
@@ -354,7 +577,7 @@ When the workflow reaches the Production environment, GitHub pauses the deployme
 
 The flow becomes:
 
-```text
+\`\`\`text
 Terraform Apply Job
         │
         ▼
@@ -369,31 +592,31 @@ Terraform Apply Job
    │         │
    ▼         ▼
  Apply     Stop
-```
+\`\`\`
 
 This demonstrates how GitHub Environments can be used to introduce a manual approval gate before production deployment.
 
----
+**---**
 
-# 🚀 Terraform Apply Job
+**# 🚀 Terraform Apply Job**
 
 The Apply job is responsible for deploying the Terraform configuration.
 
 It is configured with:
 
-```yaml
+\`\`\`yaml
 if: github.ref == 'refs/heads/main'
-```
+\`\`\`
 
 and:
 
-```yaml
+\`\`\`yaml
 needs: plan
-```
+\`\`\`
 
 Therefore, the intended dependency is:
 
-```text
+\`\`\`text
 Plan
  │
  │ success
@@ -406,33 +629,33 @@ Production Environment
  │ approval
  ▼
 Terraform Apply
-```
+\`\`\`
 
 The Apply job uses:
 
-```bash
+\`\`\`bash
 terraform init
 terraform apply -auto-approve
-```
+\`\`\`
 
 The Terraform working directory remains:
 
-```text
+\`\`\`text
 environment/dev
-```
+\`\`\`
 
----
+**---**
 
-# 🔀 Complete CI/CD Flow
+**# 🔀 Complete CI/CD Flow**
 
 The complete workflow can be visualized as:
 
-```text
+\`\`\`text
                     Git Push
                        │
                        ▼
               README-only change?
-                  /          \
+                  /          \\
                 YES           NO
                  │             │
                  ▼             ▼
@@ -482,19 +705,19 @@ The complete workflow can be visualized as:
                                 ▼           ▼
                           Terraform      Deployment
                             Apply          stops
-```
+\`\`\`
 
----
+**---**
 
-# 🛡️ Branch Protection
+**# 🔒 Branch Protection**
 
-The `main` branch is protected.
+The \`main\` branch is protected.
 
-Branch protection is an important part of the CI/CD design because it prevents changes from being merged into `main` without satisfying the configured repository rules.
+Branch protection is an important part of the CI/CD design because it prevents changes from being merged into \`main\` without satisfying the configured repository rules.
 
 The intended development model is:
 
-```text
+\`\`\`text
 Feature Branch
       │
       ▼
@@ -508,34 +731,34 @@ Code Review
       │
       ▼
 Merge to main
-```
+\`\`\`
 
 The repository therefore demonstrates the principle of using GitHub repository controls together with CI checks to protect the main infrastructure branch.
 
----
+**---**
 
-# 🔑 Azure Authentication with OIDC
+**# 🔑 Azure Authentication with OIDC**
 
 The workflow authenticates to Azure using GitHub Actions OIDC.
 
 Azure login is performed using:
 
-```yaml
-- name: Azure login
-  uses: azure/login@v3
+\`\`\`yaml
+\- name: Azure login
+  uses: azure/login\@v3
   with:
-    client-id: ${{ secrets.AZURE_CLIENT_ID }}
-    tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-    subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-```
+    client-id: ${{ secrets.AZURE\_CLIENT\_ID }}
+    tenant-id: ${{ secrets.AZURE\_TENANT\_ID }}
+    subscription-id: ${{ secrets.AZURE\_SUBSCRIPTION\_ID }}
+\`\`\`
 
 The workflow therefore needs:
 
-```text
-AZURE_CLIENT_ID
-AZURE_TENANT_ID
-AZURE_SUBSCRIPTION_ID
-```
+\`\`\`text
+AZURE\_CLIENT\_ID
+AZURE\_TENANT\_ID
+AZURE\_SUBSCRIPTION\_ID
+\`\`\`
 
 configured as GitHub secrets.
 
@@ -543,7 +766,7 @@ The important security advantage is that the workflow does not need to store a l
 
 The authentication model is:
 
-```text
+\`\`\`text
 GitHub Actions
       │
       │ OIDC token
@@ -556,31 +779,31 @@ Azure Service Principal / App Registration
       │
       ▼
 Azure Subscription
-```
+\`\`\`
 
----
+**---**
 
-# 🧩 Job Dependencies
+**# 🔗 Job Dependencies**
 
-The workflow demonstrates GitHub Actions job dependencies using `needs`.
+The workflow demonstrates GitHub Actions job dependencies using \`needs\`.
 
 The primary dependency is:
 
-```yaml
+\`\`\`yaml
 plan:
   needs: scan
-```
+\`\`\`
 
 and:
 
-```yaml
+\`\`\`yaml
 apply:
   needs: plan
-```
+\`\`\`
 
 This creates:
 
-```text
+\`\`\`text
 scan
   │
   ▼
@@ -588,95 +811,95 @@ plan
   │
   ▼
 apply
-```
+\`\`\`
 
 This is an important GitHub Actions concept because jobs normally run independently unless a dependency is explicitly defined.
 
----
+**---**
 
-# 🧠 Conditional Job Execution
+**# 🧠 Conditional Job Execution**
 
 The Apply job contains:
 
-```yaml
+\`\`\`yaml
 if: github.ref == 'refs/heads/main'
-```
+\`\`\`
 
 This demonstrates conditional execution of a GitHub Actions job.
 
-The condition evaluates the Git reference and allows the Apply job to run only when the workflow is executing against `main`.
+The condition evaluates the Git reference and allows the Apply job to run only when the workflow is executing against \`main\`.
 
----
+**---**
 
-# 📦 Terraform Version
+**# 📦 Terraform Version**
 
 The workflow installs Terraform using:
 
-```yaml
-- uses: hashicorp/setup-terraform@v4
+\`\`\`yaml
+\- uses: hashicorp/setup-terraform\@v4
   with:
-    terraform_version: "1.14.6"
-```
+    terraform\_version: "1.14.6"
+\`\`\`
 
 Pinning the Terraform version helps keep the workflow consistent and predictable across GitHub-hosted runners.
 
----
+**---**
 
-# 🎯 What This Repository Demonstrates
+**# 🧰 What This Repository Demonstrates**
 
-## Terraform
+**## 🏗️ Terraform**
 
-- Root modules
-- Child modules
-- Variables
-- Provider configuration
-- Terraform state
-- `terraform fmt`
-- `terraform init`
-- `terraform validate`
-- `terraform plan`
-- `terraform apply`
+\- Root modules
+\- Child modules
+\- Variables
+\- Provider configuration
+\- Terraform state
+\- \`terraform fmt\`
+\- \`terraform init\`
+\- \`terraform validate\`
+\- \`terraform plan\`
+\- \`terraform apply\`
 
-## GitHub Actions
+**## ⚙️ GitHub Actions**
 
-- Workflow triggers
-- Path filters
-- Jobs
-- Steps
-- Job dependencies
-- `needs`
-- Conditional execution with `if`
-- Working directories
-- GitHub secrets
-- OIDC authentication
-- GitHub Environments
+\- Workflow triggers
+\- Path filters
+\- Jobs
+\- Steps
+\- Job dependencies
+\- \`needs\`
+\- Conditional execution with \`if\`
+\- Working directories
+\- GitHub secrets
+\- OIDC authentication
+\- GitHub Environments
 
-## DevSecOps
+**## 🛡️ DevSecOps**
 
-- Gitleaks
-- TruffleHog
-- TFLint
-- Automated validation
-- Branch protection
-- Production approval gates
+\- Gitleaks
+\- TruffleHog
+\- TFLint
+\- Automated validation
+\- Branch protection
+\- Production approval gates
 
-## Azure
+**## ☁️ Azure**
 
-- Azure Resource Group
-- Microsoft Entra ID / App Registration
-- Federated Identity Credentials
-- OIDC authentication
-- Azure subscription authentication
+\- Azure Resource Group
+\- Microsoft Entra ID / App Registration
+\- Federated Identity Credentials
+\- OIDC authentication
+\- Azure subscription authentication
 
----
+**---**
 
-# 📚 Learning Path
+**# 📚 Learning Path**
 
 The repository is intentionally small so that concepts can be introduced progressively.
 
 A typical learning progression is:
 
-```text
+\`\`\`text
 Terraform Basics
       │
       ▼
@@ -705,51 +928,57 @@ Production Approval
       │
       ▼
 Terraform Apply
-```
+\`\`\`
 
-The objective is to understand not only **what** each tool does, but also **why** it is placed at a particular stage of the workflow.
+The objective is to understand not only **\*\*what\*\*** each tool does, but also **\*\*why\*\*** it is placed at a particular stage of the workflow.
 
----
+**---**
 
-# 🔮 Future Improvements
+**# 🔮 Future Improvements**
 
 This repository can be progressively extended as additional Terraform and DevOps concepts are learned.
 
 Possible future improvements include:
 
-- Terraform plan artifacts
-- Applying the exact reviewed Terraform plan
-- Checkov
-- Infracost
-- Terraform test
-- Remote Terraform state using Azure Storage
-- State locking and state management
-- Multiple reusable Terraform modules
-- Dev / Test / UAT / Production environments
-- Environment promotion
-- Reusable GitHub Actions workflows
-- Composite actions
-- Matrix-based Terraform workflows
-- Deployment protection rules
-- Manual approval strategies
-- Cost estimation
-- Additional policy-as-code checks
-- More advanced DevSecOps controls
+\- Checkov
+\- Infracost
+\- Terraform test
+\- Remote Terraform state using Azure Storage
+\- State locking and state management
+\- Multiple reusable Terraform modules
+\- Dev / Test / UAT / Production environments
+\- Environment promotion
+\- Reusable GitHub Actions workflows
+\- Composite actions
+\- Matrix-based Terraform workflows
+\- Deployment protection rules
+\- Manual approval strategies
+\- Cost estimation
+\- Additional policy-as-code checks
+\- More advanced DevSecOps controls
 
----
+**---**
 
-# 🎓 Purpose of the Repository
+**# 🎓 Purpose of the Repository**
 
 This repository is part of a hands-on learning journey focused on:
 
-**Terraform • Azure • GitHub Actions • CI/CD • DevSecOps • Infrastructure as Code**
+**\*\*Terraform • Azure • GitHub Actions • CI/CD • DevSecOps • Infrastructure as Code\*\***
 
 The infrastructure is intentionally simple. The goal is to progressively build understanding by adding one concept at a time rather than starting with a complex enterprise implementation.
 
-> **Learn the infrastructure. Understand the workflow. Automate the deployment.**
+\> **\*\*Learn the infrastructure. Understand the workflow. Automate the deployment.\*\***
+
+**---**
+
+**## 📄 License**
+
+This repository is intended primarily as a learning and practice project.
 
 ---
 
-## License
+## 👤 Author
 
-This repository is intended primarily as a learning and practice project.
+**Sanjeev Kumar Singh**
+
+Terraform • Azure • GitHub Actions • DevSecOps
