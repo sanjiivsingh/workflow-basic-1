@@ -121,7 +121,6 @@ jobs:
             fi
           
         - name: Upload Plan Artifact
-          if: ${{ steps.planid.outputs.changes == 'true' }}
           uses: actions/upload-artifact@v7
           with:
             name: terraform-plan
@@ -166,7 +165,7 @@ jobs:
           uses: actions/download-artifact@v8
           with:
             name: terraform-plan
-            path: tfplan
+            path: environment/dev/tfplan
           
         - name: Terraform Apply
           run: terraform apply -auto-approve tfplan
