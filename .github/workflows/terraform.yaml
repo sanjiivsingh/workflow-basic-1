@@ -169,7 +169,7 @@ jobs:
           uses: actions/download-artifact@v8
           with:
             name: terraform-plan
-            path: downloaded-plan
+            path: environment/dev/downloaded-plan
           
         - name: Terraform Apply
           run: terraform apply -auto-approve ./downloaded-plan/tfplan
