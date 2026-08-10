@@ -121,11 +121,12 @@ jobs:
             fi
           
         - name: Upload Plan Artifact
-          if: steps.planid.outputs.changes == 'true'
+          if: ${{ steps.planid.outputs.changes == 'true' }}
           uses: actions/upload-artifact@v7
           with:
             name: terraform-plan
-            path: tfplan
+            path: environment/dev/tfplan
+            retention-days: 5
 
   apply:
       name: Terraform Apply
