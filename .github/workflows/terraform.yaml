@@ -106,7 +106,6 @@ jobs:
             terraform plan -detailed-exitcode -out=tfplan
 
             EXIT_CODE=$?
-            echo "$EXIT_CODE"
 
             if [ "$EXIT_CODE" -eq 0 ]; then
               echo "status=success" >> "$GITHUB_OUTPUT"
@@ -170,10 +169,10 @@ jobs:
           uses: actions/download-artifact@v8
           with:
             name: terraform-plan
-            path: environment/dev/tfplan
+            path: downloaded-plan
           
         - name: Terraform Apply
-          run: terraform apply -auto-approve tfplan
+          run: terraform apply -auto-approve ./downloaded-plan/tfplan
 
 
 
